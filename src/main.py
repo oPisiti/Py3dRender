@@ -78,7 +78,7 @@ def main(stl_paths: list[str]) -> None:
         stl_mesh.points_4d = np.concatenate((stl_mesh.mesh.vectors, w_to_append), axis=2)
 
         w_to_append = np.ones((stl_mesh.mesh.vectors.shape[0], 1))
-        stl_mesh.normals_4d = np.concatenate((stl_mesh.mesh.normals, w_to_append), axis=1)
+        stl_mesh.normals_4d = np.concatenate((stl_mesh.mesh.normals / np.max(stl_mesh.mesh.normals), w_to_append), axis=1)
 
         # Calculate the centroid of the shape
         centroid_3d = np.mean(stl_mesh.mesh.centroids, axis = 0)
@@ -100,9 +100,14 @@ def main(stl_paths: list[str]) -> None:
     camera_pos   = np.array([-50, -50, 0, 0])
     camera_speed = vf3d([5, 5, 5])
 
+    # Light source - Make it a normal vector pls, thanks
+    # the w value only exists for multiplication purposes. Just set it to 0
+    #                           x  y  z  w
+    light_direction = np.array([0, 0, 1, 0])
+
     # Angles
     angular_position = 0
-    angular_speed    = 5    # Degrees/second
+    angular_speed    = 15    # Degrees/second
 
     # Define Transformation matrices
     ortho_to_screen = define_ortho_to_screen_matrix()
@@ -143,15 +148,19 @@ def main(stl_paths: list[str]) -> None:
                 ]
 
                 # Ignore triangles that point away from the screen
-                screen_space_normals = ortho_to_screen @ rotation @ stl_mesh.normals_4d[i]
-                if screen_space_normals[2] >= 0: continue
+                rotated_normal = rotation @ stl_mesh.normals_4d[i]
+                if rotated_normal[2] >= 0: continue
 
-                # render_triangle(
-                #     canvas,
-                #     (i, (i * 5) % 256, (i * 7) % 256),
-                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
-                #     pixels_depth
-                # )
+                # Define shading
+                intensity = int(-180 * np.dot(light_direction, rotated_normal)) + 25
+
+                render_triangle(
+                    canvas,
+                    # (i, (i * 5) % 256, (i * 7) % 256),
+                    (intensity, intensity, intensity),
+                    [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
+                    pixels_depth
+                )
                 py.draw.polygon(
                     canvas, 
                     (255, 255, 255), 
@@ -184,5 +193,5 @@ def main(stl_paths: list[str]) -> None:
 
 if __name__ == '__main__':
     # main("STL/20mm_cube.stl")
-    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl", "STL/Cube.stl"])
+    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
     # main("STL/Cube.stl")
