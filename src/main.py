@@ -9,9 +9,12 @@ from stl import mesh
 class FullMesh:
     def __init__(self, mesh) -> None:
         self.mesh = mesh
+        
         self.points_4d = None
-        self.centroid_4d = None
         self.normals_4d = None
+
+        self.remove_centroid = None
+        self.add_centroid = None
 
 
 def main(stl_paths: list[str]) -> None:
@@ -29,9 +32,21 @@ def main(stl_paths: list[str]) -> None:
         w_to_append = np.ones((stl_mesh.mesh.vectors.shape[0], 1))
         stl_mesh.normals_4d = np.concatenate((stl_mesh.mesh.normals / np.max(stl_mesh.mesh.normals), w_to_append), axis=1)
 
-        # Calculate the centroid of the shape
+        # Calculate the centroid translation matrices of the shape
         centroid_3d = np.mean(stl_mesh.mesh.centroids, axis = 0)
-        stl_mesh.centroid_4d = np.array([centroid_3d[0], centroid_3d[1], centroid_3d[2], 0])
+        stl_mesh.remove_centroid = np.array([
+                [1, 0, 0, -centroid_3d[0]],
+                [0, 1, 0, -centroid_3d[1]],
+                [0, 0, 1, -centroid_3d[2]],
+                [0, 0, 0, 1]
+            ])
+        stl_mesh.add_centroid = np.array([
+                [1, 0, 0, centroid_3d[0]],
+                [0, 1, 0, centroid_3d[1]],
+                [0, 0, 1, centroid_3d[2]],
+                [0, 0, 0, 1]
+            ])
+
 
     # Start pygame
     py.init()
@@ -97,31 +112,25 @@ def main(stl_paths: list[str]) -> None:
                 # TODO: Make nicer   
                 # Apply translations       
                 screen_space_tris = [
-                    ortho_to_screen @ (rotation @ (tri[0] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos),                  
-                    ortho_to_screen @ (rotation @ (tri[1] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos), 
-                    ortho_to_screen @ (rotation @ (tri[2] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos)
+                    ortho_to_screen @ (stl_mesh.add_centroid @ (rotation @ stl_mesh.remove_centroid @ tri[0]) - camera_pos),                  
+                    ortho_to_screen @ (stl_mesh.add_centroid @ (rotation @ stl_mesh.remove_centroid @ tri[1]) - camera_pos), 
+                    ortho_to_screen @ (stl_mesh.add_centroid @ (rotation @ stl_mesh.remove_centroid @ tri[2]) - camera_pos)
                 ]
-
-                # screen_space_tris = [
-                #     ortho_to_screen @ ((persp_to_ortho @ (tri[0] - camera_pos)) / Globals.Z_NEAR),
-                #     ortho_to_screen @ ((persp_to_ortho @ (tri[1] - camera_pos)) / Globals.Z_NEAR),
-                #     ortho_to_screen @ ((persp_to_ortho @ (tri[2] - camera_pos)) / Globals.Z_NEAR)
-                # ]
 
                 # Ignore triangles that point away from the screen
                 rotated_normal = rotation @ stl_mesh.normals_4d[i]
-                # if rotated_normal[2] >= 0: continue
+                if rotated_normal[2] >= 0: continue
 
                 # Define shading
-                intensity = int(-180 * np.dot(light_direction, rotated_normal)) + 25
+                intensity = int(-160 * np.dot(light_direction, rotated_normal)) + 50
 
-                # render_triangle(
-                #     canvas,
-                #     # (i, (i * 5) % 256, (i * 7) % 256),
-                #     (intensity, intensity, intensity),
-                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
-                #     depth_buffer
-                # )
+                render_triangle(
+                    canvas,
+                    # (i, (i * 5) % 256, (i * 7) % 256),
+                    (intensity, intensity, intensity),
+                    [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
+                    depth_buffer
+                )
                 py.draw.polygon(
                     canvas, 
                     (255, 255, 255), 
