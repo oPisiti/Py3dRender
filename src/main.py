@@ -22,6 +22,7 @@ class FullMesh:
         self.mesh = mesh
         self.points_4d = None
         self.centroid_4d = None
+        self.normals_4d = None
 
 
 def define_ortho_to_screen_matrix() -> np.array:
@@ -70,10 +71,14 @@ def main(stl_paths: list[str]) -> None:
     for path in stl_paths:
         stl_meshes.append(FullMesh(mesh.Mesh.from_file(path)))
 
+    # Finish populating the list of objects
     for stl_mesh in stl_meshes:
         # Adjust points to 4D
         w_to_append = np.ones((stl_mesh.mesh.vectors.shape[0], 3, 1))
         stl_mesh.points_4d = np.concatenate((stl_mesh.mesh.vectors, w_to_append), axis=2)
+
+        w_to_append = np.ones((stl_mesh.mesh.vectors.shape[0], 1))
+        stl_mesh.normals_4d = np.concatenate((stl_mesh.mesh.normals, w_to_append), axis=1)
 
         # Calculate the centroid of the shape
         centroid_3d = np.mean(stl_mesh.mesh.centroids, axis = 0)
@@ -111,7 +116,7 @@ def main(stl_paths: list[str]) -> None:
     clock   = py.time.Clock()
     while running:  
         # Setting max fps to 120
-        clock.tick(120)  
+        clock.tick(500)  
         fps = clock.get_fps()
 
         # Showing the fps in the game title
@@ -129,26 +134,28 @@ def main(stl_paths: list[str]) -> None:
         # Rendering
         for stl_mesh in stl_meshes:
             for i, tri in enumerate(stl_mesh.points_4d):
-                # Apply translations         
                 # TODO: Make nicer   
-                screen_space_tri = [
+                # Apply translations       
+                screen_space_tris = [
                     ortho_to_screen @ (rotation @ (tri[0] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos),                  
                     ortho_to_screen @ (rotation @ (tri[1] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos), 
                     ortho_to_screen @ (rotation @ (tri[2] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos)
-                    # ortho_to_screen @ rotation @ (tri[0] - centroid_4d), 
-                    # ortho_to_screen @ rotation @ (tri[1] - centroid_4d), 
-                    # ortho_to_screen @ rotation @ (tri[2] - centroid_4d)
                 ]
-                render_triangle(
-                    canvas,
-                    (i, (i * 5) % 256, (i * 7) % 256),
-                    [screen_space_tri[0][:2], screen_space_tri[1][:2], screen_space_tri[2][:2]],
-                    pixels_depth
-                )
+
+                # Ignore triangles that point away from the screen
+                screen_space_normals = ortho_to_screen @ rotation @ stl_mesh.normals_4d[i]
+                if screen_space_normals[2] >= 0: continue
+
+                # render_triangle(
+                #     canvas,
+                #     (i, (i * 5) % 256, (i * 7) % 256),
+                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
+                #     pixels_depth
+                # )
                 py.draw.polygon(
                     canvas, 
                     (255, 255, 255), 
-                    [screen_space_tri[0][:2], screen_space_tri[1][:2], screen_space_tri[2][:2]], 
+                    [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]], 
                     1
                 )
 
@@ -175,8 +182,7 @@ def main(stl_paths: list[str]) -> None:
         # Reset depth matrix
         pixels_depth = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
 
-
 if __name__ == '__main__':
     # main("STL/20mm_cube.stl")
-    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
+    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl", "STL/Cube.stl"])
     # main("STL/Cube.stl")
