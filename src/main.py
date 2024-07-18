@@ -13,8 +13,15 @@ class vf3d:
 
 
 class Globals:
-    ORTHO_BOX_DIMENSIONS = vf3d([100, 100, 100])
+    ORTHO_BOX_DIMENSIONS = vf3d([150, 150, 100])
     Z_NEAR               = 50
+
+
+class FullMesh:
+    def __init__(self, mesh) -> None:
+        self.mesh = mesh
+        self.points_4d = None
+        self.centroid_4d = None
 
 
 def define_ortho_to_screen_matrix() -> np.array:
@@ -57,19 +64,20 @@ def define_rotation_matrix(yaw_degrees: float = 0, pitch_degrees: float = 0, rol
     return yaw @ pitch @ roll
 
 
-def main(stl_path: str) -> None:
+def main(stl_paths: list[str]) -> None:
     # Pull data to RAM
-    stl_mesh = mesh.Mesh.from_file(stl_path)
+    stl_meshes = []
+    for path in stl_paths:
+        stl_meshes.append(FullMesh(mesh.Mesh.from_file(path)))
 
-    # Adjust points to 4D
-    w_to_append = np.ones((stl_mesh.vectors.shape[0], 3, 1))
-    vectors_4d = np.concatenate((stl_mesh.vectors, w_to_append), axis=2)
+    for stl_mesh in stl_meshes:
+        # Adjust points to 4D
+        w_to_append = np.ones((stl_mesh.mesh.vectors.shape[0], 3, 1))
+        stl_mesh.points_4d = np.concatenate((stl_mesh.mesh.vectors, w_to_append), axis=2)
 
-    # Calculate the centroid of the shape
-    centroid_3d = np.mean(stl_mesh.centroids, axis = 0)
-    centroid_4d = np.array([centroid_3d[0], centroid_3d[1], centroid_3d[2], 0])
-
-    print(stl_mesh.points)
+        # Calculate the centroid of the shape
+        centroid_3d = np.mean(stl_mesh.mesh.centroids, axis = 0)
+        stl_mesh.centroid_4d = np.array([centroid_3d[0], centroid_3d[1], centroid_3d[2], 0])
 
     # Start pygame
     py.init()
@@ -95,7 +103,7 @@ def main(stl_path: str) -> None:
     ortho_to_screen = define_ortho_to_screen_matrix()
     rotation        = define_rotation_matrix()
 
-    # Rendering matrices
+    # Define Rendering matrices
     pixels_depth = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
 
     # Game loop
@@ -108,7 +116,7 @@ def main(stl_path: str) -> None:
 
         # Showing the fps in the game title
         py.display.set_caption(
-            f"Success  N° Vertices: {stl_mesh.vectors.shape[0]}  FPS:{int(fps)}"
+            f"Success FPS:{int(fps)}"
         )  
 
         # Filling the canvas one color
@@ -119,29 +127,30 @@ def main(stl_path: str) -> None:
         rotation          = define_rotation_matrix(45, angular_position, angular_position)
                                                              
         # Rendering
-        for i, tri in enumerate(vectors_4d):
-            # Apply translations         
-            # TODO: Make nicer   
-            screen_space_tri = [
-                ortho_to_screen @ (rotation @ (tri[0] - centroid_4d) + centroid_4d - camera_pos),                  
-                ortho_to_screen @ (rotation @ (tri[1] - centroid_4d) + centroid_4d - camera_pos), 
-                ortho_to_screen @ (rotation @ (tri[2] - centroid_4d) + centroid_4d - camera_pos)
-                # ortho_to_screen @ rotation @ (tri[0] - centroid_4d), 
-                # ortho_to_screen @ rotation @ (tri[1] - centroid_4d), 
-                # ortho_to_screen @ rotation @ (tri[2] - centroid_4d)
-            ]
-            # render_triangle(
-            #     canvas,
-            #     (i, (i * 5) % 256, (i * 7) % 256),
-            #     [screen_space_tri[0][:2], screen_space_tri[1][:2], screen_space_tri[2][:2]],
-            #     pixels_depth
-            # )
-            py.draw.polygon(
-                canvas, 
-                (255, 255, 255), 
-                [screen_space_tri[0][:2], screen_space_tri[1][:2], screen_space_tri[2][:2]], 
-                1
-            )
+        for stl_mesh in stl_meshes:
+            for i, tri in enumerate(stl_mesh.points_4d):
+                # Apply translations         
+                # TODO: Make nicer   
+                screen_space_tri = [
+                    ortho_to_screen @ (rotation @ (tri[0] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos),                  
+                    ortho_to_screen @ (rotation @ (tri[1] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos), 
+                    ortho_to_screen @ (rotation @ (tri[2] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos)
+                    # ortho_to_screen @ rotation @ (tri[0] - centroid_4d), 
+                    # ortho_to_screen @ rotation @ (tri[1] - centroid_4d), 
+                    # ortho_to_screen @ rotation @ (tri[2] - centroid_4d)
+                ]
+                render_triangle(
+                    canvas,
+                    (i, (i * 5) % 256, (i * 7) % 256),
+                    [screen_space_tri[0][:2], screen_space_tri[1][:2], screen_space_tri[2][:2]],
+                    pixels_depth
+                )
+                py.draw.polygon(
+                    canvas, 
+                    (255, 255, 255), 
+                    [screen_space_tri[0][:2], screen_space_tri[1][:2], screen_space_tri[2][:2]], 
+                    1
+                )
 
         # Updating the canvas
         py.display.update() 
@@ -169,5 +178,5 @@ def main(stl_path: str) -> None:
 
 if __name__ == '__main__':
     # main("STL/20mm_cube.stl")
-    main("STL/dodecahedron.stl")
+    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
     # main("STL/Cube.stl")
