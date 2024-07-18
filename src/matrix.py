@@ -9,23 +9,19 @@ class vf3d:
         self.z = values[2]
 
 
-def define_ortho_to_screen_matrix(ortho_box: vf3d, canvas_dims: vf3d) -> np.array:
+def define_ortho_to_screen_matrix(ortho_box: vf3d, canvas_dims: vf3d, camera_pos: np.array) -> np.array:
     return np.array([
         [canvas_dims.x/(ortho_box.x), 0, 0, 0],
         [0, canvas_dims.y/(ortho_box.y), 0, 0],
         [0, 0, canvas_dims.z/(ortho_box.z), 0],
         [0, 0, 0, 1]   
+    ]) @ np.array([
+        [1, 0, 0, -camera_pos[0]],
+        [0, 1, 0, -camera_pos[1]],
+        [0, 0, 1, -camera_pos[2]],
+        [0, 0, 0, 1]
     ])
 
-# def define_ortho_to_screen_matrix() -> np.array:
-#     w = py.display.Info().current_w
-#     h = py.display.Info().current_h
-#     return np.array([
-#         [w, 0, 0, 0],
-#         [0, h, 0, 0],
-#         [0, 0, w, 0],
-#         [0, 0, 0, 1]   
-#     ])
 
 def define_persp_to_ortho_matrix(near: float) -> np.array:
     # f = near + ortho_box.z
