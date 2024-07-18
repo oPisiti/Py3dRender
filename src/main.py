@@ -1,20 +1,9 @@
-from math import sin, cos, pi, inf
+from math import pi, inf
+from matrix import *
 import numpy as np
 import pygame as py
 from renderer import *
 from stl import mesh
-
-
-class vf3d:
-    def __init__(self, values: list[float]) -> None:
-        self.x = values[0]
-        self.y = values[1]
-        self.z = values[2]
-
-
-class Globals:
-    ORTHO_BOX_DIMENSIONS = vf3d([150, 150, 100])
-    Z_NEAR               = 50
 
 
 class FullMesh:
@@ -23,46 +12,6 @@ class FullMesh:
         self.points_4d = None
         self.centroid_4d = None
         self.normals_4d = None
-
-
-def define_ortho_to_screen_matrix() -> np.array:
-    w = py.display.Info().current_w
-    h = py.display.Info().current_h
-    return np.array([
-        [w/(Globals.ORTHO_BOX_DIMENSIONS.x), 0, 0, 0],
-        [0, h/(Globals.ORTHO_BOX_DIMENSIONS.y), 0, 0],
-        [0, 0, w/(Globals.ORTHO_BOX_DIMENSIONS.z), 0],
-        [0, 0, 0, 1]   
-    ])
-
-
-def define_rotation_matrix(yaw_degrees: float = 0, pitch_degrees: float = 0, roll_degrees: float = 0) -> np.array:
-    alpha_rad = yaw_degrees   * pi / 180
-    beta_rad  = pitch_degrees * pi / 180
-    gamma_rad = roll_degrees  * pi / 180
-
-    yaw = np.array([
-        [cos(alpha_rad), -sin(alpha_rad), 0, 0],
-        [sin(alpha_rad), cos(alpha_rad), 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]
-    ])
-
-    pitch = np.array([
-        [cos(beta_rad), 0, sin(beta_rad), 0],
-        [0, 1, 0, 0],
-        [-sin(beta_rad), 0, cos(beta_rad), 0],
-        [0, 0, 0, 1],
-    ])
-
-    roll = np.array([
-        [1, 0, 0, 0],
-        [0, cos(gamma_rad), -sin(gamma_rad), 0],
-        [0, sin(gamma_rad), cos(gamma_rad), 0],
-        [0, 0, 0, 1]
-    ])
-
-    return yaw @ pitch @ roll
 
 
 def main(stl_paths: list[str]) -> None:
@@ -96,7 +45,12 @@ def main(stl_paths: list[str]) -> None:
 
     canvas_color = (57, 3, 66)
 
+    # Boxes dimensions
+    ORTHO_BOX_DIMENSIONS = vf3d([150, 150, 100])
+    Z_NEAR               = 50
+
     # Camera
+    FOV          = pi/2
     camera_pos   = np.array([-50, -50, 0, 0])
     camera_speed = vf3d([5, 5, 5])
 
@@ -110,11 +64,12 @@ def main(stl_paths: list[str]) -> None:
     angular_speed    = 15    # Degrees/second
 
     # Define Transformation matrices
-    ortho_to_screen = define_ortho_to_screen_matrix()
+    ortho_to_screen = define_ortho_to_screen_matrix(ORTHO_BOX_DIMENSIONS, vf3d([py.display.Info().current_w, py.display.Info().current_h, 1]))
+    persp_to_ortho  = define_persp_to_ortho_matrix(Z_NEAR)
     rotation        = define_rotation_matrix()
 
     # Define Rendering matrices
-    pixels_depth = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
+    depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
 
     # Game loop
     running = True  # If the program should be running or not - Used to close it
@@ -147,20 +102,26 @@ def main(stl_paths: list[str]) -> None:
                     ortho_to_screen @ (rotation @ (tri[2] - stl_mesh.centroid_4d) + stl_mesh.centroid_4d - camera_pos)
                 ]
 
+                # screen_space_tris = [
+                #     ortho_to_screen @ ((persp_to_ortho @ (tri[0] - camera_pos)) / Globals.Z_NEAR),
+                #     ortho_to_screen @ ((persp_to_ortho @ (tri[1] - camera_pos)) / Globals.Z_NEAR),
+                #     ortho_to_screen @ ((persp_to_ortho @ (tri[2] - camera_pos)) / Globals.Z_NEAR)
+                # ]
+
                 # Ignore triangles that point away from the screen
                 rotated_normal = rotation @ stl_mesh.normals_4d[i]
-                if rotated_normal[2] >= 0: continue
+                # if rotated_normal[2] >= 0: continue
 
                 # Define shading
                 intensity = int(-180 * np.dot(light_direction, rotated_normal)) + 25
 
-                render_triangle(
-                    canvas,
-                    # (i, (i * 5) % 256, (i * 7) % 256),
-                    (intensity, intensity, intensity),
-                    [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
-                    pixels_depth
-                )
+                # render_triangle(
+                #     canvas,
+                #     # (i, (i * 5) % 256, (i * 7) % 256),
+                #     (intensity, intensity, intensity),
+                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
+                #     depth_buffer
+                # )
                 py.draw.polygon(
                     canvas, 
                     (255, 255, 255), 
@@ -189,9 +150,10 @@ def main(stl_paths: list[str]) -> None:
                 ortho_to_screen = define_ortho_to_screen_matrix(camera_pos)
 
         # Reset depth matrix
-        pixels_depth = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
+        depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
 
 if __name__ == '__main__':
-    # main("STL/20mm_cube.stl")
-    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
-    # main("STL/Cube.stl")
+    main(["STL/20mm_cube.stl"])
+    # main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
+    # main(["STL/teapot.stl"])
+    # main(["STL/Cruz.stl"])
