@@ -108,16 +108,16 @@ def main(stl_paths: list[str]) -> None:
 
         # Filling the canvas one color
         canvas.fill(canvas_color)  
-
-        # Define rotation matrix 
-        angular_position += (angular_speed * (1/fps if fps != 0 else 0)) % 2*pi
-        rotation          = define_rotation_matrix(45, angular_position, angular_position)
-        if ROTATE_ON_CENTROID:
-            rotation = stl_mesh.add_centroid @ rotation @ stl_mesh.remove_centroid
-
                                                              
         # Rendering
         for stl_mesh in stl_meshes:
+            # Define rotation matrix 
+            angular_position += (angular_speed * (1/fps if fps != 0 else 0)) % 2*pi
+            rotation          = define_rotation_matrix(45, angular_position, angular_position)
+            if ROTATE_ON_CENTROID:
+                rotation = stl_mesh.add_centroid @ rotation @ stl_mesh.remove_centroid
+
+            # Deal with current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
                 # Apply transformations       
                 screen_space_tris = [
@@ -171,7 +171,7 @@ def main(stl_paths: list[str]) -> None:
         depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
 
 if __name__ == '__main__':
-    main(["STL/20mm_cube.stl"])
-    # main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
+    # main(["STL/20mm_cube.stl"])
+    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
     # main(["STL/teapot.stl"])
     # main(["STL/Cruz.stl"])
