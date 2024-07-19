@@ -62,11 +62,12 @@ def main(stl_paths: list[str]) -> None:
 
     # Boxes dimensions
     ORTHO_BOX_DIMENSIONS = vf3d([150, 150, 100])
-    Z_NEAR               = 50
+
+    Z_FAR  = 100
 
     # Camera
-    FOV          = pi/2
-    camera_pos   = np.array([-50, -50, 0, 0])
+    FOV          = pi / 10
+    camera_pos   = np.array([0, -25, -50, 0])
     camera_speed = vf3d([5, 5, 5])
 
     # Light source - Make it a normal vector pls, thanks
@@ -76,22 +77,27 @@ def main(stl_paths: list[str]) -> None:
 
     # Angles
     angular_position = 0
-    angular_speed    = 15    # Degrees/second
+    angular_speed    = 5    # Degrees/second
 
     # Define Transformation matrices
     ortho_to_screen = define_ortho_to_screen_matrix(
             ORTHO_BOX_DIMENSIONS, 
-            vf3d([py.display.Info().current_w, py.display.Info().current_h, 1]),
+            vf3d([py.display.Info().current_w, py.display.Info().current_h, 100]),
             camera_pos
         )
-    persp_to_ortho  = define_persp_to_ortho_matrix(Z_NEAR)
-    rotation        = define_rotation_matrix()
+    persp_to_screen = define_persp_to_screen_matrix(
+            vf3d([py.display.Info().current_w, py.display.Info().current_h, 100]),
+            FOV,
+            Z_FAR,
+            camera_pos
+        )
+    rotation = define_rotation_matrix()
 
     # Define Rendering matrices
     depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
 
     # Configs
-    ROTATE_ON_CENTROID = False
+    ROTATE_ON_CENTROID = True
 
     # Game loop
     running = True  # If the program should be running or not - Used to close it
@@ -119,12 +125,23 @@ def main(stl_paths: list[str]) -> None:
 
             # Deal with current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
+                (A, B, C) = tri
                 # Apply transformations       
+                # screen_space_tris = [
+                #     ortho_to_screen @ rotation @ tri[0],                  
+                #     ortho_to_screen @ rotation @ tri[1], 
+                #     ortho_to_screen @ rotation @ tri[2]
+                # ]
                 screen_space_tris = [
-                    ortho_to_screen @ rotation @ tri[0],                  
-                    ortho_to_screen @ rotation @ tri[1], 
-                    ortho_to_screen @ rotation @ tri[2]
+                    persp_to_screen @ rotation @ A,                  
+                    persp_to_screen @ rotation @ B, 
+                    persp_to_screen @ rotation @ C
                 ]
+
+                # Divide by z if possible
+                for p in range(3):
+                    if screen_space_tris[p][3] != 0:
+                        screen_space_tris[p] /= screen_space_tris[p][3]
 
                 # Ignore triangles that point away from the screen
                 rotated_normal = rotation @ stl_mesh.normals_4d[i]

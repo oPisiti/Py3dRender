@@ -1,4 +1,4 @@
-from math import sin, cos, pi
+from math import sin, cos, tan, pi
 import numpy as np
 
 
@@ -10,12 +10,12 @@ class vf3d:
 
 
 def define_ortho_to_screen_matrix(ortho_box: vf3d, canvas_dims: vf3d, camera_pos: np.array) -> np.array:
-    return np.array([
+    return np.array([                               # Orthografic space to screen space
         [canvas_dims.x/(ortho_box.x), 0, 0, 0],
         [0, canvas_dims.y/(ortho_box.y), 0, 0],
         [0, 0, canvas_dims.z/(ortho_box.z), 0],
         [0, 0, 0, 1]   
-    ]) @ np.array([
+    ]) @ np.array([                                 # Translate on opposite direction of camera
         [1, 0, 0, -camera_pos[0]],
         [0, 1, 0, -camera_pos[1]],
         [0, 0, 1, -camera_pos[2]],
@@ -23,16 +23,31 @@ def define_ortho_to_screen_matrix(ortho_box: vf3d, canvas_dims: vf3d, camera_pos
     ])
 
 
-def define_persp_to_ortho_matrix(near: float) -> np.array:
-    # f = near + ortho_box.z
-    return np.array([
-        [near, 0, 0, 0],
-        [0, near, 0, 0],
-        [0, 0, near, near],
+def define_persp_to_screen_matrix(canvas_dims: vf3d, fov: float, z_far: float, camera_pos: np.array) -> np.array:
+    a = canvas_dims.x / canvas_dims.y
+    f = 1 / tan(fov / 2)
+    l = z_far / (z_far - f)
+    return np.array([                   # NDC space to screen space
+        [canvas_dims.x/2, 0, 0, 0],
+        [0, canvas_dims.y/2, 0, 0],
+        [0, 0, canvas_dims.z/2, 0],
+        [0, 0, 0, 1]   
+    ]) @ \
+    np.array([                          # Perspective to NDC space
+        [f*a, 0, 0, 0],
+        [0, f, 0, 0],
+        [0, 0, l, -l*f],
         [0, 0, 1, 0]   
+    ]) @ \
+    np.array([                          # Translate on z for illusion of camera
+        [1, 0, 0, -camera_pos[0]],
+        [0, 1, 0, -camera_pos[1]],
+        [0, 0, 1, -camera_pos[2]],
+        [0, 0, 0, 1]
     ])
 
-# def define_persp_to_ortho_matrix(aspect: float = 1, near = 1, far = 10) -> np.array:
+
+# def define_persp_to_screen_matrix(aspect: float = 1, near = 1, far = 10) -> np.array:
 #     tan_falf_FOV = tan(Globals.FOV / 2)
 #     return np.array([
 #         [1/(aspect*tan_falf_FOV), 0, 0, 0],
