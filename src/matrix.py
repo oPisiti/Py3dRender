@@ -1,77 +1,88 @@
-from math import sin, cos, tan, pi
 import numpy as np
 
 
 class vf3d:
-    def __init__(self, values: list[float]) -> None:
+    def __init__(self, values: list[np.float32]) -> None:
         self.x = values[0]
         self.y = values[1]
         self.z = values[2]
 
 
-def define_ortho_to_screen_matrix(ortho_box: vf3d, canvas_dims: vf3d, camera_pos: np.array) -> np.array:
+def define_ortho_to_screen_matrix(
+        ortho_box:   np.array, 
+        canvas_dims: np.array, 
+        camera_pos:  np.array
+        ) -> np.array:
+
     return np.array([                               # Orthografic space to screen space
-        [canvas_dims.x/(ortho_box.x), 0, 0, 0],
-        [0, canvas_dims.y/(ortho_box.y), 0, 0],
-        [0, 0, canvas_dims.z/(ortho_box.z), 0],
+        [canvas_dims[0]/(ortho_box[0]), 0, 0, 0],
+        [0, canvas_dims[1]/(ortho_box[1]), 0, 0],
+        [0, 0, canvas_dims[2]/(ortho_box[2]), 0],
         [0, 0, 0, 1]   
-    ]) @ np.array([                                 # Translate on opposite direction of camera
+    ], dtype=np.float32) @ \
+    np.array([                                 # Translate on opposite direction of camera
         [1, 0, 0, -camera_pos[0]],
         [0, 1, 0, -camera_pos[1]],
         [0, 0, 1, -camera_pos[2]],
         [0, 0, 0, 1]
-    ])
+    ], dtype=np.float32)
 
 
-def define_persp_to_screen_matrix(canvas_dims: vf3d, fov: float, z_far: float, camera_pos: np.array) -> np.array:
-    a = canvas_dims.x / canvas_dims.y
-    f = 1 / tan(fov / 2)
+def define_persp_to_screen_matrix(
+        canvas_dims: np.array, 
+        fov:         np.float32, 
+        z_far:       np.float32, 
+        camera_pos:  np.array
+        ) -> np.array:
+
+    a = canvas_dims[0] / canvas_dims[1]
+    f = 1 / np.tan(fov / 2)
     l = z_far / (z_far - f)
     return np.array([                   # NDC space to screen space
-        [canvas_dims.x/2, 0, 0, 0],
-        [0, canvas_dims.y/2, 0, 0],
-        [0, 0, canvas_dims.z/2, 0],
+        [canvas_dims[0]/2, 0, 0, 0],
+        [0, canvas_dims[1]/2, 0, 0],
+        [0, 0, canvas_dims[2]/2, 0],
         [0, 0, 0, 1]   
-    ]) @ \
+    ], dtype=np.float32) @ \
     np.array([                          # Perspective to NDC space
         [f*a, 0, 0, 0],
         [0, f, 0, 0],
         [0, 0, l, -l*f],
         [0, 0, 1, 0]   
-    ]) @ \
+    ], dtype=np.float32) @ \
     np.array([                          # Translate on z for illusion of camera
         [1, 0, 0, -camera_pos[0]],
         [0, 1, 0, -camera_pos[1]],
         [0, 0, 1, -camera_pos[2]],
         [0, 0, 0, 1]
-    ])
+    ], dtype=np.float32)
 
 
-def define_rotation_matrix(yaw_degrees: float = 0, pitch_degrees: float = 0, roll_degrees: float = 0) -> np.array:
-    alpha_rad = yaw_degrees   * pi / 180
-    beta_rad  = pitch_degrees * pi / 180
-    gamma_rad = roll_degrees  * pi / 180
+def define_rotation_matrix(
+        yaw_degrees:   float = 0, 
+        pitch_degrees: float = 0, 
+        roll_degrees:  float = 0
+        ) -> np.array:
 
-    yaw = np.array([
-        [cos(alpha_rad), -sin(alpha_rad), 0, 0],
-        [sin(alpha_rad), cos(alpha_rad), 0, 0],
+    alpha_rad = yaw_degrees   * np.pi / 180
+    beta_rad  = pitch_degrees * np.pi / 180
+    gamma_rad = roll_degrees  * np.pi / 180
+
+    return np.array([                                   # Yaw
+        [np.cos(alpha_rad), -np.sin(alpha_rad), 0, 0],
+        [np.sin(alpha_rad),  np.cos(alpha_rad), 0, 0],
         [0, 0, 1, 0],
         [0, 0, 0, 1]
-    ])
-
-    pitch = np.array([
-        [cos(beta_rad), 0, sin(beta_rad), 0],
+    ], dtype=np.float32) @ \
+    np.array([                                          # Pitch
+        [ np.cos(beta_rad), 0, np.sin(beta_rad), 0],
         [0, 1, 0, 0],
-        [-sin(beta_rad), 0, cos(beta_rad), 0],
+        [-np.sin(beta_rad), 0, np.cos(beta_rad), 0],
         [0, 0, 0, 1],
-    ])
-
-    roll = np.array([
+    ], dtype=np.float32) @ \
+    np.array([                                          # Roll
         [1, 0, 0, 0],
-        [0, cos(gamma_rad), -sin(gamma_rad), 0],
-        [0, sin(gamma_rad), cos(gamma_rad), 0],
+        [0, np.cos(gamma_rad), -np.sin(gamma_rad), 0],
+        [0, np.sin(gamma_rad),  np.cos(gamma_rad), 0],
         [0, 0, 0, 1]
-    ])
-
-    return yaw @ pitch @ roll
-
+    ], dtype=np.float32)

@@ -1,4 +1,3 @@
-from math import pi, inf
 from matrix import *
 import numpy as np
 import pygame as py
@@ -61,32 +60,32 @@ def main(stl_paths: list[str]) -> None:
     canvas_color = np.array([57, 3, 66], dtype=np.uint8)
 
     # Boxes dimensions
-    ORTHO_BOX_DIMENSIONS = vf3d([150, 150, 100])
+    ORTHO_BOX_DIMENSIONS = np.array([150, 150, 100], dtype=np.float32)
 
-    Z_FAR  = 100
+    Z_FAR  = np.float32(100)
 
     # Camera
-    FOV          = pi / 10
-    camera_pos   = np.array([-20, -35, -150, 0])
-    camera_speed = vf3d([5, 5, 5])
+    FOV          = np.float32(np.pi / 10)
+    camera_pos   = np.array([-20, -35, -150, 0], dtype=np.float32)
+    camera_speed = np.array([5, 5, 5, 0], dtype=np.float32)
 
     # Light source - Make it a normal vector pls, thanks
     # the w value only exists for multiplication purposes. Just set it to 0
     #                           x  y  z  w
-    light_direction = np.array([0, 0, 1, 0])
+    light_direction = np.array([0, 0, 1, 0], dtype=np.float32)
 
     # Angles
-    angular_position = 0
-    angular_speed    = 5    # Degrees/second
+    angular_position = np.float32(0)
+    angular_speed    = np.float32(5)    # Degrees/second
 
     # Define Transformation matrices
     ortho_to_screen = define_ortho_to_screen_matrix(
             ORTHO_BOX_DIMENSIONS, 
-            vf3d([py.display.Info().current_w, py.display.Info().current_h, 100]),
+            np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
             camera_pos
         )
     persp_to_screen = define_persp_to_screen_matrix(
-            vf3d([py.display.Info().current_w, py.display.Info().current_h, 100]),
+            np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
             FOV,
             Z_FAR,
             camera_pos
@@ -94,7 +93,7 @@ def main(stl_paths: list[str]) -> None:
     rotation = define_rotation_matrix()
 
     # Define Rendering matrices
-    depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
+    depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)
     pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
 
     # Configs
@@ -123,7 +122,7 @@ def main(stl_paths: list[str]) -> None:
         # Rendering
         for stl_mesh in stl_meshes:
             # Define rotation matrix 
-            angular_position += (angular_speed * (1/fps if fps != 0 else 0)) % 2*pi
+            angular_position += (angular_speed * (1/fps if fps != 0 else 0)) % 2*np.pi
             rotation_basic    = define_rotation_matrix(45, angular_position, angular_position)
             if ROTATE_ON_CENTROID:
                 rotation = stl_mesh.add_centroid @ rotation_basic @ stl_mesh.remove_centroid
@@ -154,18 +153,19 @@ def main(stl_paths: list[str]) -> None:
                 if rotated_normal[2] >= 0: continue
 
                 # Define shading
-                intensity = int(-160 * np.dot(light_direction, rotated_normal)) + 50
+                intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50
+                tri_color = np.array((intensity, intensity, intensity))                
 
                 render_triangle(
                     canvas,
-                    (intensity, intensity, intensity),
+                    tri_color,
                     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
                     depth_buffer
                 )
                 
                 py.draw.polygon(
                     canvas, 
-                    (255, 255, 255), 
+                    np.array([255, 255, 255], dtype=np.uint8), 
                     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]], 
                     1
                 )
@@ -191,7 +191,7 @@ def main(stl_paths: list[str]) -> None:
         #         ortho_to_screen = define_ortho_to_screen_matrix(camera_pos)
 
         # Reset render matrices
-        depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
+        depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)
         pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
         py.surfarray.blit_array(canvas, pixel_buffer)
 

@@ -9,11 +9,11 @@ def solve_equation(A: np.array, y: int, m: float) -> float:
 
 
 def render_triangle(
-                    canvas: py.Surface, 
-                    color: list, 
-                    tri: list[np.array],
-                    depth: np.array 
-                   ) -> None:
+        canvas: py.Surface, 
+        color:  np.array, 
+        tri:    list[np.array],
+        depth:  np.array 
+        ) -> None:
     
     ordered_tris = sorted(tri, key=lambda t: t[1])
 
