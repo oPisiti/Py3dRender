@@ -47,16 +47,6 @@ def define_persp_to_screen_matrix(canvas_dims: vf3d, fov: float, z_far: float, c
     ])
 
 
-# def define_persp_to_screen_matrix(aspect: float = 1, near = 1, far = 10) -> np.array:
-#     tan_falf_FOV = tan(Globals.FOV / 2)
-#     return np.array([
-#         [1/(aspect*tan_falf_FOV), 0, 0, 0],
-#         [0, 1/tan_falf_FOV, 0, 0],
-#         [0, 0, far/(far-near), -(far*near)/(far-near)],
-#         [0, 0, 1, 0]   
-#     ])
-
-
 def define_rotation_matrix(yaw_degrees: float = 0, pitch_degrees: float = 0, roll_degrees: float = 0) -> np.array:
     alpha_rad = yaw_degrees   * pi / 180
     beta_rad  = pitch_degrees * pi / 180

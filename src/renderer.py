@@ -47,14 +47,14 @@ def render_triangle(
         y += 1
 
 
-    # Bottom half
-    while y <= ordered_tris[2][1]:
-        xAC = solve_equation(ordered_tris[0], y, mAC_x)
-        xBC = solve_equation(ordered_tris[1], y, mBC_x)
+    # # Bottom half
+    # while y <= ordered_tris[2][1]:
+    #     xAC = solve_equation(ordered_tris[0], y, mAC_x)
+    #     xBC = solve_equation(ordered_tris[1], y, mBC_x)
 
-        # Fill horizontal line
-        py.draw.line(canvas, color, (xAC, y), (xBC, y))
-        # for x in range(min(xAB, xBC), max(xAB, xBC)):
-        #     canvas.set_at([x, y], color)
+    #     # Fill horizontal line
+    #     py.draw.line(canvas, color, (xAC, y), (xBC, y))
+    #     # for x in range(min(xAB, xBC), max(xAB, xBC)):
+    #     #     canvas.set_at([x, y], color)
 
-        y += 1
+    #     y += 1

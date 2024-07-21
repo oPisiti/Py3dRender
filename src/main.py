@@ -10,11 +10,11 @@ class FullMesh:
     def __init__(self, mesh) -> None:
         self.mesh = mesh
 
-        self.points_4d = None
+        self.points_4d  = None
         self.normals_4d = None
 
         self.remove_centroid = None
-        self.add_centroid = None
+        self.add_centroid    = None
 
 
 def main(stl_paths: list[str]) -> None:
@@ -58,7 +58,7 @@ def main(stl_paths: list[str]) -> None:
         (width, height), py.RESIZABLE
     )  
 
-    canvas_color = (57, 3, 66)
+    canvas_color = np.array([57, 3, 66], dtype=np.uint8)
 
     # Boxes dimensions
     ORTHO_BOX_DIMENSIONS = vf3d([150, 150, 100])
@@ -67,7 +67,7 @@ def main(stl_paths: list[str]) -> None:
 
     # Camera
     FOV          = pi / 10
-    camera_pos   = np.array([0, -25, -50, 0])
+    camera_pos   = np.array([-20, -35, -150, 0])
     camera_speed = vf3d([5, 5, 5])
 
     # Light source - Make it a normal vector pls, thanks
@@ -95,47 +95,53 @@ def main(stl_paths: list[str]) -> None:
 
     # Define Rendering matrices
     depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
+    pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
 
     # Configs
     ROTATE_ON_CENTROID = True
+    ORTHO_TRANSFORM    = False
 
     # Game loop
     running = True  # If the program should be running or not - Used to close it
     clock   = py.time.Clock()
     while running:  
-        # Setting max fps to 120
+        # Setting max fps
         clock.tick(500)  
         fps = clock.get_fps()
 
         # Showing the fps in the game title
         py.display.set_caption(
-            f"Success FPS:{int(fps)}"
+            f"Success FPS: {int(fps)}"
         )  
 
         # Filling the canvas one color
         canvas.fill(canvas_color)  
+
+        for i in range(800):
+            canvas.set_at([i, i], (255, 255, 255))
                                                              
         # Rendering
         for stl_mesh in stl_meshes:
             # Define rotation matrix 
             angular_position += (angular_speed * (1/fps if fps != 0 else 0)) % 2*pi
-            rotation          = define_rotation_matrix(45, angular_position, angular_position)
+            rotation_basic    = define_rotation_matrix(45, angular_position, angular_position)
             if ROTATE_ON_CENTROID:
-                rotation = stl_mesh.add_centroid @ rotation @ stl_mesh.remove_centroid
+                rotation = stl_mesh.add_centroid @ rotation_basic @ stl_mesh.remove_centroid
+            else:
+                rotation = rotation_basic
+
+            # Set transform type
+            transform_to_screen = ortho_to_screen if ORTHO_TRANSFORM else persp_to_screen
 
             # Deal with current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
                 (A, B, C) = tri
+                
                 # Apply transformations       
-                # screen_space_tris = [
-                #     ortho_to_screen @ rotation @ tri[0],                  
-                #     ortho_to_screen @ rotation @ tri[1], 
-                #     ortho_to_screen @ rotation @ tri[2]
-                # ]
                 screen_space_tris = [
-                    persp_to_screen @ rotation @ A,                  
-                    persp_to_screen @ rotation @ B, 
-                    persp_to_screen @ rotation @ C
+                    transform_to_screen @ rotation @ A,                  
+                    transform_to_screen @ rotation @ B, 
+                    transform_to_screen @ rotation @ C
                 ]
 
                 # Divide by z if possible
@@ -144,19 +150,19 @@ def main(stl_paths: list[str]) -> None:
                         screen_space_tris[p] /= screen_space_tris[p][3]
 
                 # Ignore triangles that point away from the screen
-                rotated_normal = rotation @ stl_mesh.normals_4d[i]
-                # if rotated_normal[2] >= 0: continue
+                rotated_normal = rotation_basic @ stl_mesh.normals_4d[i]
+                if rotated_normal[2] >= 0: continue
 
                 # Define shading
                 intensity = int(-160 * np.dot(light_direction, rotated_normal)) + 50
 
-                # render_triangle(
-                #     canvas,
-                #     # (i, (i * 5) % 256, (i * 7) % 256),
-                #     (intensity, intensity, intensity),
-                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
-                #     depth_buffer
-                # )
+                render_triangle(
+                    canvas,
+                    (intensity, intensity, intensity),
+                    [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
+                    depth_buffer
+                )
+                
                 py.draw.polygon(
                     canvas, 
                     (255, 255, 255), 
@@ -168,24 +174,27 @@ def main(stl_paths: list[str]) -> None:
         py.display.update() 
 
         # py.event.get() contains all events happening in a game
-        for (event) in py.event.get():
-            if event.type == py.QUIT: 
-                running = False
+        # for (event) in py.event.get():
+        #     if event.type == py.QUIT: 
+        #         running = False
 
-            # Get the state of all keyboard buttons
-            keys = py.key.get_pressed()
+        #     # Get the state of all keyboard buttons
+        #     keys = py.key.get_pressed()
 
-            if keys[py.K_w]: camera_pos.z -= camera_speed.z
-            if keys[py.K_a]: camera_pos.x += camera_speed.x
-            if keys[py.K_s]: camera_pos.z += camera_speed.z
-            if keys[py.K_d]: camera_pos.x -= camera_speed.x
+        #     if keys[py.K_w]: camera_pos.z -= camera_speed.z
+        #     if keys[py.K_a]: camera_pos.x += camera_speed.x
+        #     if keys[py.K_s]: camera_pos.z += camera_speed.z
+        #     if keys[py.K_d]: camera_pos.x -= camera_speed.x
 
-            # Update transform matrix
-            if keys[py.K_w] or keys[py.K_a] or keys[py.K_s] or keys[py.K_d]:
-                ortho_to_screen = define_ortho_to_screen_matrix(camera_pos)
+        #     # Update transform matrix
+        #     if keys[py.K_w] or keys[py.K_a] or keys[py.K_s] or keys[py.K_d]:
+        #         ortho_to_screen = define_ortho_to_screen_matrix(camera_pos)
 
-        # Reset depth matrix
+        # Reset render matrices
         depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), inf)
+        pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
+        py.surfarray.blit_array(canvas, pixel_buffer)
+
 
 if __name__ == '__main__':
     # main(["STL/20mm_cube.stl"])
