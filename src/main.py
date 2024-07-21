@@ -174,9 +174,9 @@ def main(stl_paths: list[str]) -> None:
         py.display.update() 
 
         # py.event.get() contains all events happening in a game
-        # for (event) in py.event.get():
-        #     if event.type == py.QUIT: 
-        #         running = False
+        for (event) in py.event.get():
+            if event.type == py.QUIT: 
+                running = False
 
         #     # Get the state of all keyboard buttons
         #     keys = py.key.get_pressed()
