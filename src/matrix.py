@@ -15,9 +15,9 @@ def define_ortho_to_screen_matrix(
         ) -> np.array:
 
     return np.array([                               # Orthografic space to screen space
-        [canvas_dims[0]/(ortho_box[0]), 0, 0, 0],
-        [0, canvas_dims[1]/(ortho_box[1]), 0, 0],
-        [0, 0, canvas_dims[2]/(ortho_box[2]), 0],
+        [canvas_dims[0]/(ortho_box[0]), 0, 0, canvas_dims[0]/2],
+        [0, canvas_dims[1]/(ortho_box[1]), 0, canvas_dims[1]/2],
+        [0, 0, canvas_dims[2]/(ortho_box[2]), canvas_dims[2]/2],
         [0, 0, 0, 1]   
     ], dtype=np.float32) @ \
     np.array([                                 # Translate on opposite direction of camera
@@ -39,9 +39,9 @@ def define_persp_to_screen_matrix(
     f = 1 / np.tan(fov / 2)
     l = z_far / (z_far - f)
     return np.array([                   # NDC space to screen space
-        [canvas_dims[0]/2, 0, 0, 0],
-        [0, canvas_dims[1]/2, 0, 0],
-        [0, 0, canvas_dims[2]/2, 0],
+        [canvas_dims[0]/2, 0, 0, canvas_dims[0]/2],
+        [0, canvas_dims[1]/2, 0, canvas_dims[1]/2],
+        [0, 0, canvas_dims[2]/2, canvas_dims[2]/2],
         [0, 0, 0, 1]   
     ], dtype=np.float32) @ \
     np.array([                          # Perspective to NDC space

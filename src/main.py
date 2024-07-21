@@ -66,7 +66,7 @@ def main(stl_paths: list[str]) -> None:
 
     # Camera
     FOV          = np.float32(np.pi / 10)
-    camera_pos   = np.array([-20, -35, -150, 0], dtype=np.float32)
+    camera_pos   = np.array([0, 0, -150, 0], dtype=np.float32)
     camera_speed = np.array([5, 5, 5, 0], dtype=np.float32)
 
     # Light source - Make it a normal vector pls, thanks
@@ -97,7 +97,7 @@ def main(stl_paths: list[str]) -> None:
     pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
 
     # Configs
-    ROTATE_ON_CENTROID = True
+    ROTATE_ON_CENTROID = False
     ORTHO_TRANSFORM    = False
 
     # Game loop
@@ -130,7 +130,8 @@ def main(stl_paths: list[str]) -> None:
                 rotation = rotation_basic
 
             # Set transform type
-            transform_to_screen = ortho_to_screen if ORTHO_TRANSFORM else persp_to_screen
+            transform = ortho_to_screen if ORTHO_TRANSFORM else persp_to_screen
+            transform = transform @ rotation
 
             # Deal with current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
@@ -138,9 +139,9 @@ def main(stl_paths: list[str]) -> None:
                 
                 # Apply transformations       
                 screen_space_tris = [
-                    transform_to_screen @ rotation @ A,                  
-                    transform_to_screen @ rotation @ B, 
-                    transform_to_screen @ rotation @ C
+                    transform @ A,                  
+                    transform @ B, 
+                    transform @ C
                 ]
 
                 # Divide by z if possible
@@ -156,12 +157,12 @@ def main(stl_paths: list[str]) -> None:
                 intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50
                 tri_color = np.array((intensity, intensity, intensity))                
 
-                render_triangle(
-                    canvas,
-                    tri_color,
-                    [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
-                    depth_buffer
-                )
+                # render_triangle(
+                #     canvas,
+                #     tri_color,
+                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
+                #     depth_buffer
+                # )
                 
                 py.draw.polygon(
                     canvas, 
