@@ -35,29 +35,28 @@ def fill_triangle(
     ], dtype=np.float32)
 
 
+    # if int(B[1]) - int(A[1]) > 1:
+    # Edges
+    point1, point2 = ordered_points[0].copy(), ordered_points[0].copy()
 
-    if int(B[1]) - int(A[1]) > 1:
-        # Edges
-        point1, point2 = ordered_points[0].copy(), ordered_points[0].copy()
+    # Top half
+    while point1[1] <= ordered_points[1][1]:
+        point1 += deltas[0]
+        point2 += deltas[2]
 
-        # Top half
-        while point1[1] <= ordered_points[1][1]:
-            point1 += deltas[0]
-            point2 += deltas[2]
+        # Make sure the two points don't have the same x value
+        if int(point1[0]) == int(point2[0]): continue
 
-            # Make sure the two points don't have the same x value
-            if int(point1[0]) == int(point2[0]): continue
+        # Make sure the left point is assigned left
+        if point1[0] <= point2[0]: left, right = point1, point2
+        else:                      left, right = point2, point1
 
-            # Make sure the left point is assigned left
-            if point1[0] <= point2[0]: left, right = point1, point2
-            else:                      left, right = point2, point1
+        # y is out of bounds
+        if left[1] < 0: continue
+        if left[1] >= pixel_buffer.shape[1]: break
 
-            # y is out of bounds
-            if left[1] < 0: continue
-            if left[1] >= pixel_buffer.shape[1]: break
-
-            # Fill the line
-            _fill_line(left, right, pixel_buffer, depth, color)
+        # Fill the line
+        _fill_line(left, right, pixel_buffer, depth, color)
 
     # There is no bottom half
     if B[0] == C[0]: return
@@ -65,7 +64,7 @@ def fill_triangle(
     # Edges
     point1, point2 = ordered_points[2].copy(), ordered_points[2].copy()
 
-    # # Bottom half
+    # Bottom half
     while point1[1] >= ordered_points[1][1]:
         point1 -= deltas[1]
         point2 -= deltas[2]

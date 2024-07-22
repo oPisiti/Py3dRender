@@ -65,7 +65,7 @@ def main(stl_paths: list[str]) -> None:
 
     # Camera
     FOV          = np.float32(np.pi / 5)
-    camera_pos   = np.array([0, 0, -100, 0], dtype=np.float32)
+    camera_pos   = np.array([0, 0, -5, 0], dtype=np.float32)
     camera_speed = np.array([5, 5, 5, 0], dtype=np.float32)
 
     # Light source - Make it a normal vector pls, thanks
@@ -75,7 +75,7 @@ def main(stl_paths: list[str]) -> None:
 
     # Angles
     angular_position = np.float32(0)
-    angular_speed    = np.float32(5)    # Degrees/second
+    angular_speed    = np.float32(2)    # Degrees/second
 
     # Define Transformation matrices
     ortho_to_screen = define_ortho_to_screen_matrix(
@@ -96,8 +96,8 @@ def main(stl_paths: list[str]) -> None:
     pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
 
     # Configs
-    ROTATE_ON_CENTROID = False
-    ORTHO_TRANSFORM    = True
+    ROTATE_ON_CENTROID = True
+    ORTHO_TRANSFORM    = False
 
     # Render data
     rendered_tris_count = 0
@@ -123,7 +123,8 @@ def main(stl_paths: list[str]) -> None:
         for stl_mesh in stl_meshes:
             # Define rotation matrix 
             angular_position += (angular_speed * (1/fps if fps != 0 else 0)) % 2*np.pi
-            rotation_basic    = define_rotation_matrix(45, angular_position, angular_position)
+            rotation_basic    = define_rotation_matrix(180, angular_position, angular_position)
+            # rotation_basic    = define_rotation_matrix(45, angular_position, angular_position)
             if ROTATE_ON_CENTROID:
                 rotation = stl_mesh.add_centroid @ rotation_basic @ stl_mesh.remove_centroid
             else:
@@ -152,7 +153,7 @@ def main(stl_paths: list[str]) -> None:
 
                 # Ignore triangles that point away from the screen
                 rotated_normal = rotation_basic @ stl_mesh.normals_4d[i]
-                # if rotated_normal[2] >= 0: continue
+                if rotated_normal[2] >= 0: continue
 
                 # Define shading
                 intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50
@@ -206,6 +207,7 @@ def main(stl_paths: list[str]) -> None:
 
 if __name__ == '__main__':
     # main(["STL/20mm_cube.stl"])
-    main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
+    # main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
     # main(["STL/teapot.stl"])
     # main(["STL/Cruz.stl"])
+    main(["STL/monka.stl"])
