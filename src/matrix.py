@@ -1,13 +1,6 @@
 import numpy as np
 
 
-class vf3d:
-    def __init__(self, values: list[np.float32]) -> None:
-        self.x = values[0]
-        self.y = values[1]
-        self.z = values[2]
-
-
 def define_ortho_to_screen_matrix(
         ortho_box:   np.array, 
         canvas_dims: np.array, 
@@ -45,8 +38,8 @@ def define_persp_to_screen_matrix(
         [0, 0, 0, 1]   
     ], dtype=np.float32) @ \
     np.array([                          # Perspective to NDC space
-        [f*a, 0, 0, 0],
-        [0, f, 0, 0],
+        [f, 0, 0, 0],
+        [0, f*a, 0, 0],
         [0, 0, l, -l*f],
         [0, 0, 1, 0]   
     ], dtype=np.float32) @ \

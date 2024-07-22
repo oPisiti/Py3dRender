@@ -46,7 +46,6 @@ def main(stl_paths: list[str]) -> None:
                 [0, 0, 0, 1]
             ])
 
-
     # Start pygame
     py.init()
     width  = 800
@@ -65,8 +64,8 @@ def main(stl_paths: list[str]) -> None:
     Z_FAR  = np.float32(100)
 
     # Camera
-    FOV          = np.float32(np.pi / 10)
-    camera_pos   = np.array([0, 0, -150, 0], dtype=np.float32)
+    FOV          = np.float32(np.pi / 5)
+    camera_pos   = np.array([0, 0, -100, 0], dtype=np.float32)
     camera_speed = np.array([5, 5, 5, 0], dtype=np.float32)
 
     # Light source - Make it a normal vector pls, thanks
@@ -98,7 +97,10 @@ def main(stl_paths: list[str]) -> None:
 
     # Configs
     ROTATE_ON_CENTROID = False
-    ORTHO_TRANSFORM    = False
+    ORTHO_TRANSFORM    = True
+
+    # Render data
+    rendered_tris_count = 0
 
     # Game loop
     running = True  # If the program should be running or not - Used to close it
@@ -110,15 +112,13 @@ def main(stl_paths: list[str]) -> None:
 
         # Showing the fps in the game title
         py.display.set_caption(
-            f"Success FPS: {int(fps)}"
+            f"Tri count: {sum([m.mesh.points.shape[0] for m in stl_meshes])}. Rendered: {int(rendered_tris_count)}. FPS: {int(fps)}"
         )  
+        rendered_tris_count = 0
 
         # Filling the canvas one color
         canvas.fill(canvas_color)  
-
-        for i in range(800):
-            canvas.set_at([i, i], (255, 255, 255))
-                                                             
+                                                
         # Rendering
         for stl_mesh in stl_meshes:
             # Define rotation matrix 
@@ -132,6 +132,7 @@ def main(stl_paths: list[str]) -> None:
             # Set transform type
             transform = ortho_to_screen if ORTHO_TRANSFORM else persp_to_screen
             transform = transform @ rotation
+            # transform = transform 
 
             # Deal with current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
@@ -151,18 +152,20 @@ def main(stl_paths: list[str]) -> None:
 
                 # Ignore triangles that point away from the screen
                 rotated_normal = rotation_basic @ stl_mesh.normals_4d[i]
-                if rotated_normal[2] >= 0: continue
+                # if rotated_normal[2] >= 0: continue
 
                 # Define shading
                 intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50
                 tri_color = np.array((intensity, intensity, intensity))                
 
-                # render_triangle(
-                #     canvas,
-                #     tri_color,
-                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]],
-                #     depth_buffer
-                # )
+                fill_triangle(
+                    pixel_buffer,
+                    tri_color,
+                    screen_space_tris,
+                    depth_buffer
+                )
+
+                # render_triangle(pixel_buffer, tri_color, screen_space_tris)
                 
                 py.draw.polygon(
                     canvas, 
@@ -171,8 +174,13 @@ def main(stl_paths: list[str]) -> None:
                     1
                 )
 
+                rendered_tris_count += 1
+
+        # Blit to canvas
+        py.surfarray.blit_array(canvas, pixel_buffer)
+        
         # Updating the canvas
-        py.display.update() 
+        py.display.flip() 
 
         # py.event.get() contains all events happening in a game
         for (event) in py.event.get():
@@ -194,7 +202,6 @@ def main(stl_paths: list[str]) -> None:
         # Reset render matrices
         depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)
         pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
-        py.surfarray.blit_array(canvas, pixel_buffer)
 
 
 if __name__ == '__main__':
