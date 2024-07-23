@@ -1,31 +1,10 @@
-from enum import Enum
+from helper import *
 from matrix import *
 import numpy as np
 import pygame as py
 from renderer import *
 from stl import mesh
 from time import time
-
-
-class FullMesh:
-    def __init__(self, mesh) -> None:
-        self.mesh = mesh
-
-        self.points_4d  = None
-        self.normals_4d = None
-
-        self.remove_centroid = None
-        self.add_centroid    = None
-
-
-class Projection(Enum):
-    ORTHO = 1
-    PERSP = 2
-
-
-class RenderType(Enum):
-    FILL = 1
-    WIRE = 2
 
 
 def main(stl_paths: list[str]) -> None:
@@ -64,15 +43,11 @@ def main(stl_paths: list[str]) -> None:
     height = 750
 
     # Screen creation - Shows up and then the program ends
-    canvas = py.display.set_mode(       
-        (width, height), py.RESIZABLE
-    )  
-
+    canvas = py.display.set_mode((width, height))  
     canvas_color = np.array([57, 3, 66], dtype=np.uint8)
 
     # Boxes dimensions
-    ORTHO_BOX_DIMENSIONS = np.array([3, 3, 100], dtype=np.float32)
-
+    ORTHO_BOX_DIMENSIONS = np.array([3, 3, 3], dtype=np.float32)
     Z_FAR  = np.float32(100)
 
     # Camera
@@ -80,14 +55,14 @@ def main(stl_paths: list[str]) -> None:
     camera_pos   = np.array([0, 0, -5, 0], dtype=np.float32)
     camera_speed = np.array([5, 5, 5, 0], dtype=np.float32)
 
-    # Light source - Make it a normal vector pls, thanks
+    # Light source
     # the w value only exists for multiplication purposes. Just set it to 0
-    #                           x  y  z  w
-    light_direction = np.array([0, 0, 1, 0], dtype=np.float32)
+    #                                        x  y  z  w
+    light_direction = normalize_1d(np.array([1, 0, 0], dtype=np.float32))
 
     # Angles
     angular_position = np.float32(0)
-    angular_speed    = np.float32(180)    # Degrees/second
+    angular_speed    = np.float32(10)    # Degrees/second
 
     # Define Transformation matrices
     ortho_to_screen = define_ortho_to_screen_matrix(
@@ -113,6 +88,7 @@ def main(stl_paths: list[str]) -> None:
     RENDER             = RenderType.FILL
     last_toggle        = time()
     min_toggle_delta   = 1.5                # In seconds
+    game_start_time    = time()
 
     # Render data
     rendered_tris_count = 0
@@ -126,7 +102,7 @@ def main(stl_paths: list[str]) -> None:
         clock.tick(500)  
         fps = clock.get_fps()
 
-        # Showing the fps in the game title
+        # Showing some info in the game's caption
         py.display.set_caption(
             f"Tri count: {sum([m.mesh.points.shape[0] for m in stl_meshes])}. Rendered: {int(rendered_tris_count)}. FPS: {int(fps)}"
         )  
@@ -142,9 +118,9 @@ def main(stl_paths: list[str]) -> None:
                                                 
         # Rendering
         for stl_mesh in stl_meshes:
-            # Define rotation matrix 
-            angular_position += (angular_speed * np.pi/180 * (1/fps if fps != 0 else 0) ) % np.pi*2
-            rotation_basic    = define_rotation_matrix(180, angular_position, angular_position)
+            # Define rotation matrix
+            angular_position = (angular_speed * (time() - game_start_time)) % 360
+            rotation_basic   = define_rotation_matrix(180, angular_position, angular_position)
             if ROTATE_ON_CENTROID:
                 rotation = stl_mesh.add_centroid @ rotation_basic @ stl_mesh.remove_centroid
             else:
@@ -153,7 +129,7 @@ def main(stl_paths: list[str]) -> None:
             # Define final projection matrix
             projection = projection @ rotation
 
-            # Deal with current mesh
+            # Deal with the triangles of the current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
                 (A, B, C) = tri
                 
@@ -170,12 +146,14 @@ def main(stl_paths: list[str]) -> None:
                         screen_space_tris[p] /= screen_space_tris[p][3]
 
                 # Ignore triangles that point away from the screen
-                rotated_normal = rotation_basic @ stl_mesh.normals_4d[i]
-                if rotated_normal[2] >= 0: continue
+                edge0 = (screen_space_tris[1] - screen_space_tris[0])[:3]
+                edge1 = (screen_space_tris[2] - screen_space_tris[0])[:3]
+                z_cross = get_z_cross(edge0, edge1)
+                if z_cross >= 0: continue
 
                 # Define shading
-                intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50
-                tri_color = np.array((intensity, intensity, intensity))                
+                shade = get_face_color(edge0, edge1, light_direction)         
+                tri_color = np.array((shade, shade, shade))
 
                 if RENDER == RenderType.FILL:
                     fill_triangle(
@@ -220,7 +198,7 @@ def main(stl_paths: list[str]) -> None:
                 (20, 50)
             )
 
-        # py.event.get() contains all events happening in a game
+        # Handle events happening in game
         for (event) in py.event.get():
             if event.type == py.QUIT: 
                 running = False
@@ -243,17 +221,8 @@ def main(stl_paths: list[str]) -> None:
                 if time() - last_toggle >= min_toggle_delta:
                     if   RENDER == RenderType.FILL: RENDER = RenderType.WIRE
                     elif RENDER == RenderType.WIRE: RENDER = RenderType.FILL
-                    
+
                     last_toggle = time()
-
-            # if keys[py.K_w]: camera_pos.z -= camera_speed.z
-            # if keys[py.K_a]: camera_pos.x += camera_speed.x
-            # if keys[py.K_s]: camera_pos.z += camera_speed.z
-            # if keys[py.K_d]: camera_pos.x -= camera_speed.x
-
-            # # Update projection matrix
-            # if keys[py.K_w] or keys[py.K_a] or keys[py.K_s] or keys[py.K_d]:
-            #     ortho_to_screen = define_ortho_to_screen_matrix(camera_pos)
 
         # Reset render matrices
         depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)
@@ -264,8 +233,4 @@ def main(stl_paths: list[str]) -> None:
 
 
 if __name__ == '__main__':
-    # main(["STL/20mm_cube.stl"])
-    # main(["STL/20mm_cube.stl", "STL/dodecahedron.stl"])
-    # main(["STL/teapot.stl"])
-    # main(["STL/Cruz.stl"])
     main(["STL/monka.stl"])

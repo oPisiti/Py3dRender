@@ -2,6 +2,7 @@ from numba import njit
 import numpy as np
 import pygame as py
 
+
 @njit()
 def fill_triangle(
         pixel_buffer: np.array, 
@@ -96,7 +97,7 @@ def fill_triangle(
         _fill_line(left, right, pixel_buffer, depth, color)
 
 
-@njit(parallel=True)
+@njit()
 def _fill_line(
         left, 
         right, 
