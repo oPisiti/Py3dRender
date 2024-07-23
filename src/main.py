@@ -152,7 +152,7 @@ def main(stl_paths: list[str]) -> None:
 
                 # Ignore triangles that point away from the screen
                 rotated_normal = rotation_basic @ stl_mesh.normals_4d[i]
-                # if rotated_normal[2] >= 0: continue
+                if rotated_normal[2] >= 0: continue
 
                 # Define shading
                 intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50

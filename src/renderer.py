@@ -13,6 +13,10 @@ def fill_triangle(
     ordered_points = sorted(tri, key=lambda t: t[1])
     (A, B, C) = ordered_points
 
+    # Bounding box on x
+    x_min = min(A[0], B[0], C[0])
+    x_max = max(A[0], B[0], C[0])
+
     deltas = np.array([
         [ # AB
             (B[0] - A[0]) / (B[1] - A[1]) if B[1] != A[1] else 0,
@@ -55,6 +59,10 @@ def fill_triangle(
         if left[1] < 0: continue
         if left[1] >= pixel_buffer.shape[1]: break
 
+        # Clamp points to bounding box on x
+        left[0]  = max(left[0], x_min)
+        right[0] = min(right[0], x_max)
+
         # Fill the line
         _fill_line(left, right, pixel_buffer, depth, color)
 
@@ -79,6 +87,10 @@ def fill_triangle(
         # y is out of bounds
         if left[1] >= pixel_buffer.shape[1]: continue
         if left[1] < 0: break
+        
+        # Clamp points to bounding box on x
+        left[0]  = max(left[0], x_min)
+        right[0] = min(right[0], x_max)
 
         # Fill the line
         _fill_line(left, right, pixel_buffer, depth, color)
@@ -94,7 +106,11 @@ def _fill_line(
         ) -> None:
 
     x, y, z = max(np.int32(left[0]), 0), np.int32(left[1]), left[2]
-    delta_z = (right[2] - left[2]) / (right[0] - left[0])
+
+    divisor = (right[0] - left[0])
+    if divisor: delta_z = (right[2] - left[2]) / divisor
+    else:       delta_z = 1
+
     while x < min(right[0], pixel_buffer.shape[0]):
         # Check the z value
         if z < depth[x][y]:
