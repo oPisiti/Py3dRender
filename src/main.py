@@ -22,6 +22,11 @@ class Projection(Enum):
     PERSP = 2
 
 
+class RenderType(Enum):
+    FILL = 1
+    WIRE = 2
+
+
 def main(stl_paths: list[str]) -> None:
     # Pull data to RAM
     stl_meshes = []
@@ -104,6 +109,7 @@ def main(stl_paths: list[str]) -> None:
     # Configs
     ROTATE_ON_CENTROID = True
     PROJECTION         = Projection.PERSP
+    RENDER             = RenderType.WIRE
 
     # Render data
     rendered_tris_count = 0
@@ -125,6 +131,11 @@ def main(stl_paths: list[str]) -> None:
 
         # Filling the canvas one color
         canvas.fill(canvas_color)  
+
+        # Set projection type
+        match PROJECTION:
+            case Projection.ORTHO: projection = ortho_to_screen
+            case Projection.PERSP: projection = persp_to_screen
                                                 
         # Rendering
         for stl_mesh in stl_meshes:
@@ -136,10 +147,6 @@ def main(stl_paths: list[str]) -> None:
             else:
                 rotation = rotation_basic
 
-            # Set projection type
-            match PROJECTION:
-                case Projection.ORTHO: projection = ortho_to_screen
-                case Projection.PERSP: projection = persp_to_screen
             projection = projection @ rotation
 
             # Deal with current mesh
@@ -166,24 +173,27 @@ def main(stl_paths: list[str]) -> None:
                 intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50
                 tri_color = np.array((intensity, intensity, intensity))                
 
-                fill_triangle(
-                    pixel_buffer,
-                    tri_color,
-                    screen_space_tris,
-                    depth_buffer
-                )
+                if RENDER == RenderType.FILL:
+                    fill_triangle(
+                        pixel_buffer,
+                        tri_color,
+                        screen_space_tris,
+                        depth_buffer
+                    )
 
-                # py.draw.polygon(
-                #     canvas, 
-                #     np.array([255, 255, 255], dtype=np.uint8), 
-                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]], 
-                #     1
-                # )
+                elif RENDER == RenderType.WIRE:
+                    py.draw.polygon(
+                        canvas, 
+                        np.array([255, 255, 255], dtype=np.uint8), 
+                        [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]], 
+                        1
+                    )
 
                 rendered_tris_count += 1
 
-        # Blit to canvas
-        py.surfarray.blit_array(canvas, pixel_buffer)
+        if RENDER == RenderType.FILL:
+            # Blit to canvas
+            py.surfarray.blit_array(canvas, pixel_buffer)
 
         # Overlaying instructions
         # --- Projection ---
@@ -195,6 +205,16 @@ def main(stl_paths: list[str]) -> None:
                 font.render(projection_text, True, (255, 255, 255)), 
                 (20, 20)
             )
+        
+        # --- Render type --- 
+        render_text = 'Render type (r): '
+        match RENDER:
+            case RenderType.FILL: render_text += "Fill"
+            case RenderType.WIRE: render_text += "Wireframe"
+        canvas.blit(
+                font.render(render_text, True, (255, 255, 255)), 
+                (20, 50)
+            )
 
         # py.event.get() contains all events happening in a game
         for (event) in py.event.get():
@@ -204,10 +224,15 @@ def main(stl_paths: list[str]) -> None:
             # Get the state of all keyboard buttons
             keys = py.key.get_pressed()
 
-            # Change transformation type
+            # Toggle transformation type
             if keys[py.K_p]: 
                 if   PROJECTION == Projection.ORTHO: PROJECTION = Projection.PERSP
                 elif PROJECTION == Projection.PERSP: PROJECTION = Projection.ORTHO
+
+            # Toggle render type
+            if keys[py.K_r]: 
+                if   RENDER == RenderType.FILL: RENDER = RenderType.WIRE
+                elif RENDER == RenderType.WIRE: RENDER = RenderType.FILL
 
             # if keys[py.K_w]: camera_pos.z -= camera_speed.z
             # if keys[py.K_a]: camera_pos.x += camera_speed.x
