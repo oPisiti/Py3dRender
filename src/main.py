@@ -1,3 +1,4 @@
+from enum import Enum
 from matrix import *
 import numpy as np
 import pygame as py
@@ -14,6 +15,11 @@ class FullMesh:
 
         self.remove_centroid = None
         self.add_centroid    = None
+
+
+class Projection(Enum):
+    ORTHO = 1
+    PERSP = 2
 
 
 def main(stl_paths: list[str]) -> None:
@@ -59,7 +65,7 @@ def main(stl_paths: list[str]) -> None:
     canvas_color = np.array([57, 3, 66], dtype=np.uint8)
 
     # Boxes dimensions
-    ORTHO_BOX_DIMENSIONS = np.array([150, 150, 100], dtype=np.float32)
+    ORTHO_BOX_DIMENSIONS = np.array([3, 3, 100], dtype=np.float32)
 
     Z_FAR  = np.float32(100)
 
@@ -75,7 +81,7 @@ def main(stl_paths: list[str]) -> None:
 
     # Angles
     angular_position = np.float32(0)
-    angular_speed    = np.float32(2)    # Degrees/second
+    angular_speed    = np.float32(180)    # Degrees/second
 
     # Define Transformation matrices
     ortho_to_screen = define_ortho_to_screen_matrix(
@@ -97,10 +103,11 @@ def main(stl_paths: list[str]) -> None:
 
     # Configs
     ROTATE_ON_CENTROID = True
-    ORTHO_TRANSFORM    = False
+    PROJECTION         = Projection.PERSP
 
     # Render data
     rendered_tris_count = 0
+    font = py.font.SysFont(None, 24)
 
     # Game loop
     running = True  # If the program should be running or not - Used to close it
@@ -122,17 +129,18 @@ def main(stl_paths: list[str]) -> None:
         # Rendering
         for stl_mesh in stl_meshes:
             # Define rotation matrix 
-            angular_position += (angular_speed * (1/fps if fps != 0 else 0)) % 2*np.pi
+            angular_position += (angular_speed * np.pi/180 * (1/fps if fps != 0 else 0) ) % np.pi*2
             rotation_basic    = define_rotation_matrix(180, angular_position, angular_position)
-            # rotation_basic    = define_rotation_matrix(45, angular_position, angular_position)
             if ROTATE_ON_CENTROID:
                 rotation = stl_mesh.add_centroid @ rotation_basic @ stl_mesh.remove_centroid
             else:
                 rotation = rotation_basic
 
-            # Set transform type
-            transform = ortho_to_screen if ORTHO_TRANSFORM else persp_to_screen
-            transform = transform @ rotation
+            # Set projection type
+            match PROJECTION:
+                case Projection.ORTHO: projection = ortho_to_screen
+                case Projection.PERSP: projection = persp_to_screen
+            projection = projection @ rotation
 
             # Deal with current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
@@ -140,9 +148,9 @@ def main(stl_paths: list[str]) -> None:
                 
                 # Apply transformations       
                 screen_space_tris = [
-                    transform @ A,                  
-                    transform @ B, 
-                    transform @ C
+                    projection @ A,                  
+                    projection @ B, 
+                    projection @ C
                 ]
 
                 # Divide by z if possible
@@ -176,30 +184,46 @@ def main(stl_paths: list[str]) -> None:
 
         # Blit to canvas
         py.surfarray.blit_array(canvas, pixel_buffer)
-        
-        # Updating the canvas
-        py.display.flip() 
+
+        # Overlaying instructions
+        # --- Projection ---
+        projection_text = 'Projection (p): '
+        match PROJECTION:
+            case Projection.ORTHO: projection_text += "Orthographic"
+            case Projection.PERSP: projection_text += "Perspective"
+        canvas.blit(
+                font.render(projection_text, True, (255, 255, 255)), 
+                (20, 20)
+            )
 
         # py.event.get() contains all events happening in a game
         for (event) in py.event.get():
             if event.type == py.QUIT: 
                 running = False
 
-        #     # Get the state of all keyboard buttons
-        #     keys = py.key.get_pressed()
+            # Get the state of all keyboard buttons
+            keys = py.key.get_pressed()
 
-        #     if keys[py.K_w]: camera_pos.z -= camera_speed.z
-        #     if keys[py.K_a]: camera_pos.x += camera_speed.x
-        #     if keys[py.K_s]: camera_pos.z += camera_speed.z
-        #     if keys[py.K_d]: camera_pos.x -= camera_speed.x
+            # Change transformation type
+            if keys[py.K_p]: 
+                if   PROJECTION == Projection.ORTHO: PROJECTION = Projection.PERSP
+                elif PROJECTION == Projection.PERSP: PROJECTION = Projection.ORTHO
 
-        #     # Update transform matrix
-        #     if keys[py.K_w] or keys[py.K_a] or keys[py.K_s] or keys[py.K_d]:
-        #         ortho_to_screen = define_ortho_to_screen_matrix(camera_pos)
+            # if keys[py.K_w]: camera_pos.z -= camera_speed.z
+            # if keys[py.K_a]: camera_pos.x += camera_speed.x
+            # if keys[py.K_s]: camera_pos.z += camera_speed.z
+            # if keys[py.K_d]: camera_pos.x -= camera_speed.x
+
+            # # Update projection matrix
+            # if keys[py.K_w] or keys[py.K_a] or keys[py.K_s] or keys[py.K_d]:
+            #     ortho_to_screen = define_ortho_to_screen_matrix(camera_pos)
 
         # Reset render matrices
         depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)
         pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
+
+        # Updating the canvas
+        py.display.flip() 
 
 
 if __name__ == '__main__':
