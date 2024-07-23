@@ -4,6 +4,7 @@ import numpy as np
 import pygame as py
 from renderer import *
 from stl import mesh
+from time import time
 
 
 class FullMesh:
@@ -109,7 +110,9 @@ def main(stl_paths: list[str]) -> None:
     # Configs
     ROTATE_ON_CENTROID = True
     PROJECTION         = Projection.PERSP
-    RENDER             = RenderType.WIRE
+    RENDER             = RenderType.FILL
+    last_toggle        = time()
+    min_toggle_delta   = 1.5                # In seconds
 
     # Render data
     rendered_tris_count = 0
@@ -147,6 +150,7 @@ def main(stl_paths: list[str]) -> None:
             else:
                 rotation = rotation_basic
 
+            # Define final projection matrix
             projection = projection @ rotation
 
             # Deal with current mesh
@@ -191,8 +195,8 @@ def main(stl_paths: list[str]) -> None:
 
                 rendered_tris_count += 1
 
+        # Blit to canvas
         if RENDER == RenderType.FILL:
-            # Blit to canvas
             py.surfarray.blit_array(canvas, pixel_buffer)
 
         # Overlaying instructions
@@ -226,13 +230,21 @@ def main(stl_paths: list[str]) -> None:
 
             # Toggle transformation type
             if keys[py.K_p]: 
-                if   PROJECTION == Projection.ORTHO: PROJECTION = Projection.PERSP
-                elif PROJECTION == Projection.PERSP: PROJECTION = Projection.ORTHO
+                # Check last toggle time - avoids flicks
+                if time() - last_toggle >= min_toggle_delta:
+                    if   PROJECTION == Projection.ORTHO: PROJECTION = Projection.PERSP
+                    elif PROJECTION == Projection.PERSP: PROJECTION = Projection.ORTHO
+                    
+                    last_toggle = time()
 
             # Toggle render type
             if keys[py.K_r]: 
-                if   RENDER == RenderType.FILL: RENDER = RenderType.WIRE
-                elif RENDER == RenderType.WIRE: RENDER = RenderType.FILL
+                # Check last toggle time - avoids flicks
+                if time() - last_toggle >= min_toggle_delta:
+                    if   RENDER == RenderType.FILL: RENDER = RenderType.WIRE
+                    elif RENDER == RenderType.WIRE: RENDER = RenderType.FILL
+                    
+                    last_toggle = time()
 
             # if keys[py.K_w]: camera_pos.z -= camera_speed.z
             # if keys[py.K_a]: camera_pos.x += camera_speed.x

@@ -1,8 +1,8 @@
-from numba import jit
+from numba import njit
 import numpy as np
 import pygame as py
 
-# @jit()
+@njit()
 def fill_triangle(
         pixel_buffer: np.array, 
         color:        np.array, 
@@ -96,7 +96,7 @@ def fill_triangle(
         _fill_line(left, right, pixel_buffer, depth, color)
 
 
-@jit(parallel=True)
+@njit(parallel=True)
 def _fill_line(
         left, 
         right, 
@@ -119,37 +119,3 @@ def _fill_line(
 
         x += 1
         z += delta_z
-    
-
-
-def render_triangle(
-        pixel_buffer: np.array, 
-        color:        np.array, 
-        tri:          list[np.array],
-        ) -> None:
-
-    sorted_tris = sorted(tri, key=lambda t: t[1])
-    (A, B, C) = sorted_tris
-
-    deltas = np.array([
-        np.float32((B[0] - A[0]) / (B[1] - A[1]) if B[1] != A[1] else 0),
-        np.float32((C[0] - B[0]) / (C[1] - B[1]) if C[1] != B[1] else 0),
-        np.float32((A[0] - C[0]) / (A[1] - C[1]) if A[1] != C[1] else 0)
-    ])
-
-    for i, y in enumerate((np.int32(A[1]), np.int32(B[1]), np.int32(C[1]))):
-        x = sorted_tris[i][0]
-
-        # Render each line
-        while y < sorted_tris[(i+1)%3][1]:
-            x_int16 = np.int16(x)
-
-            # Out of bounds
-            if x_int16 < 0 or x_int16 >= pixel_buffer.shape[0] or \
-               y < 0 or y >= pixel_buffer.shape[1]:
-                break
-
-            pixel_buffer[x_int16][y] = color
-
-            x += deltas[i]
-            y += 1
