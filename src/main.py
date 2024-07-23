@@ -49,7 +49,7 @@ def main(stl_paths: list[str]) -> None:
     # Start pygame
     py.init()
     width  = 800
-    height = 800
+    height = 750
 
     # Screen creation - Shows up and then the program ends
     canvas = py.display.set_mode(       
@@ -133,7 +133,6 @@ def main(stl_paths: list[str]) -> None:
             # Set transform type
             transform = ortho_to_screen if ORTHO_TRANSFORM else persp_to_screen
             transform = transform @ rotation
-            # transform = transform 
 
             # Deal with current mesh
             for i, tri in enumerate(stl_mesh.points_4d): 
@@ -153,7 +152,7 @@ def main(stl_paths: list[str]) -> None:
 
                 # Ignore triangles that point away from the screen
                 rotated_normal = rotation_basic @ stl_mesh.normals_4d[i]
-                if rotated_normal[2] >= 0: continue
+                # if rotated_normal[2] >= 0: continue
 
                 # Define shading
                 intensity = np.uint8(-160 * np.dot(light_direction, rotated_normal)) + 50
@@ -166,14 +165,12 @@ def main(stl_paths: list[str]) -> None:
                     depth_buffer
                 )
 
-                # render_triangle(pixel_buffer, tri_color, screen_space_tris)
-                
-                py.draw.polygon(
-                    canvas, 
-                    np.array([255, 255, 255], dtype=np.uint8), 
-                    [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]], 
-                    1
-                )
+                # py.draw.polygon(
+                #     canvas, 
+                #     np.array([255, 255, 255], dtype=np.uint8), 
+                #     [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]], 
+                #     1
+                # )
 
                 rendered_tris_count += 1
 

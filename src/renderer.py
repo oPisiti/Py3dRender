@@ -95,7 +95,7 @@ def _fill_line(
 
     x, y, z = max(np.int32(left[0]), 0), np.int32(left[1]), left[2]
     delta_z = (right[2] - left[2]) / (right[0] - left[0])
-    while x <= min(right[0], pixel_buffer.shape[0]):
+    while x < min(right[0], pixel_buffer.shape[0]):
         # Check the z value
         if z < depth[x][y]:
             depth[x][y] = z
