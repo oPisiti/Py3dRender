@@ -47,9 +47,30 @@ def get_z_cross(
     return a[0]*b[1] - a[1]*b[0]
 
 
-def approve_event(last_toggle: float, min_toggle_delta: float) -> None:
-    now = time()
-    if now - last_toggle >= min_toggle_delta:
-        last_toggle = now
-        return True
-    return False
+def render_overlay(canvas, font, PROJECTION: Projection, RENDER: RenderType, FOV: np.float32) -> None:
+    # --- Projection ---
+    projection_text = 'Projection (p): '
+    match PROJECTION:
+        case Projection.ORTHO: projection_text += "Orthographic"
+        case Projection.PERSP: projection_text += "Perspective"
+    canvas.blit(
+            font.render(projection_text, True, (255, 255, 255)), 
+            (20, 20)
+        )
+    
+    # --- Render type --- 
+    render_text = 'Render type (r): '
+    match RENDER:
+        case RenderType.FILL: render_text += "Fill"
+        case RenderType.WIRE: render_text += "Wireframe"
+    canvas.blit(
+            font.render(render_text, True, (255, 255, 255)), 
+            (20, 50)
+        )
+
+    # --- FOV value --- 
+    render_text = f'FOV (-/+): {int(FOV * 180 / np.pi)}'
+    canvas.blit(
+            font.render(render_text, True, (255, 255, 255)), 
+            (20, 80)
+        )

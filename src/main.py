@@ -39,6 +39,8 @@ def main(stl_paths: list[str]) -> None:
 
     # Start pygame
     py.init()
+    
+    # Window size
     width  = 800
     height = 750
 
@@ -81,14 +83,14 @@ def main(stl_paths: list[str]) -> None:
     rotation = define_rotation_matrix()
 
     # Define Rendering matrices
-    depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)
-    pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
+    depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf, dtype=np.float32)
+    pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color, dtype=np.float32)
 
     # Configs
     ROTATE_ON_CENTROID = True
     PROJECTION         = Projection.PERSP
     RENDER             = RenderType.FILL
-    last_toggle        = time()
+    last_input        = time()
     min_toggle_delta   = 2                  # In seconds
     game_start_time    = time()
 
@@ -136,7 +138,7 @@ def main(stl_paths: list[str]) -> None:
                 (A, B, C) = tri
                 
                 # Apply transformations       
-                screen_space_tris = [
+                screen_space_verts = [
                     projection @ A,                  
                     projection @ B, 
                     projection @ C
@@ -144,24 +146,23 @@ def main(stl_paths: list[str]) -> None:
 
                 # Divide by z if possible
                 for p in range(3):
-                    if screen_space_tris[p][3] != 0:
-                        screen_space_tris[p] /= screen_space_tris[p][3]
+                    if screen_space_verts[p][3] != 0:
+                        screen_space_verts[p] /= screen_space_verts[p][3]
 
                 # Ignore triangles that point away from the screen
-                edge0 = (screen_space_tris[1] - screen_space_tris[0])[:3]
-                edge1 = (screen_space_tris[2] - screen_space_tris[0])[:3]
+                edge0 = (screen_space_verts[1] - screen_space_verts[0])[:3]
+                edge1 = (screen_space_verts[2] - screen_space_verts[0])[:3]
                 z_cross = get_z_cross(edge0, edge1)
                 if z_cross >= 0: continue
 
                 # Define shading
                 shade = get_face_color(edge0, edge1, light_direction)         
                 tri_color = np.array((shade, shade, shade))
-
                 if RENDER == RenderType.FILL:
                     fill_triangle(
                         pixel_buffer,
                         tri_color,
-                        screen_space_tris,
+                        screen_space_verts,
                         depth_buffer
                     )
 
@@ -169,7 +170,7 @@ def main(stl_paths: list[str]) -> None:
                     py.draw.polygon(
                         canvas, 
                         np.array([255, 255, 255], dtype=np.uint8), 
-                        [screen_space_tris[0][:2], screen_space_tris[1][:2], screen_space_tris[2][:2]], 
+                        [screen_space_verts[0][:2], screen_space_verts[1][:2], screen_space_verts[2][:2]], 
                         1
                     )
 
@@ -180,89 +181,66 @@ def main(stl_paths: list[str]) -> None:
             py.surfarray.blit_array(canvas, pixel_buffer)
 
         # Overlaying instructions
-        # --- Projection ---
-        projection_text = 'Projection (p): '
-        match PROJECTION:
-            case Projection.ORTHO: projection_text += "Orthographic"
-            case Projection.PERSP: projection_text += "Perspective"
-        canvas.blit(
-                font.render(projection_text, True, (255, 255, 255)), 
-                (20, 20)
-            )
-        
-        # --- Render type --- 
-        render_text = 'Render type (r): '
-        match RENDER:
-            case RenderType.FILL: render_text += "Fill"
-            case RenderType.WIRE: render_text += "Wireframe"
-        canvas.blit(
-                font.render(render_text, True, (255, 255, 255)), 
-                (20, 50)
-            )
-
-        # --- FOV value --- 
-        render_text = f'FOV (-/+): {int(FOV * 180 / np.pi)}'
-        canvas.blit(
-                font.render(render_text, True, (255, 255, 255)), 
-                (20, 80)
-            )
-
-        # Handle events happening in game
-        for (event) in py.event.get():
-            if event.type == py.QUIT: 
-                running = False
-
-            # Get the state of all keyboard buttons
-            keys = py.key.get_pressed()
-
-            # Toggle transformation type
-            if keys[py.K_p]: 
-                # Check last toggle time - avoids flicks
-                if approve_event(last_toggle, min_toggle_delta):
-                    if   PROJECTION == Projection.ORTHO: PROJECTION = Projection.PERSP
-                    elif PROJECTION == Projection.PERSP: PROJECTION = Projection.ORTHO
-
-            # Toggle render type
-            if keys[py.K_r]: 
-                # Check last toggle time - avoids flicks
-                if approve_event(last_toggle, min_toggle_delta):
-                    if   RENDER == RenderType.FILL: RENDER = RenderType.WIRE
-                    elif RENDER == RenderType.WIRE: RENDER = RenderType.FILL
-
-            # Change FOV
-            if keys[py.K_EQUALS]:                 
-                # Check last toggle time - avoids flicks
-               if approve_event(last_toggle, min_toggle_delta):
-                    FOV = min(FOV + delta_FOV, max_FOV)
-
-                    # Recalculate the perspective tranform
-                    persp_to_screen = define_persp_to_screen_matrix(
-                            np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
-                            FOV,
-                            Z_FAR,
-                            camera_pos
-                        )
-
-            if keys[py.K_MINUS]:  
-                # Check last toggle time - avoids flicks
-                if approve_event(last_toggle, min_toggle_delta):
-                    FOV = max(FOV - delta_FOV, min_FOV)
-
-                    # Recalculate the perspective tranform
-                    persp_to_screen = define_persp_to_screen_matrix(
-                            np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
-                            FOV,
-                            Z_FAR,
-                            camera_pos
-                        )
-
+        render_overlay(canvas, font, PROJECTION, RENDER, FOV)
 
         # Reset render matrices
-        depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)
-        pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color)
+        depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf, dtype=np.float32)
+        pixel_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h, 3), canvas_color, dtype=np.float32)
 
         # Updating the canvas
         py.display.flip() 
+
+        # Handle events happening in game
+        for event in py.event.get():
+            if event.type == py.QUIT: 
+                running = False
+            
+        # Check last input time
+        if (time() - last_input) < min_toggle_delta:
+            continue
+
+        # Get the state of all keyboard buttons
+        keys = py.key.get_pressed()
+
+        # Toggle transformation type
+        if keys[py.K_p]: 
+            if   PROJECTION == Projection.ORTHO: PROJECTION = Projection.PERSP
+            elif PROJECTION == Projection.PERSP: PROJECTION = Projection.ORTHO
+            last_input = time()
+
+        # Toggle render type
+        if keys[py.K_r]: 
+            if   RENDER == RenderType.FILL: RENDER = RenderType.WIRE
+            elif RENDER == RenderType.WIRE: RENDER = RenderType.FILL
+            last_input = time()
+
+        # Change FOV
+        if keys[py.K_EQUALS]:                 
+            FOV = min(FOV + delta_FOV, max_FOV)
+
+            # Recalculate the perspective tranform
+            persp_to_screen = define_persp_to_screen_matrix(
+                    np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
+                    FOV,
+                    Z_FAR,
+                    camera_pos
+                )
+
+            last_input = time()
+
+        if keys[py.K_MINUS]:  
+            FOV = max(FOV - delta_FOV, min_FOV)
+
+            # Recalculate the perspective tranform
+            persp_to_screen = define_persp_to_screen_matrix(
+                    np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
+                    FOV,
+                    Z_FAR,
+                    camera_pos
+                )
+
+            last_input = time()
+
 
 
 if __name__ == '__main__':
