@@ -52,15 +52,17 @@ def main(stl_paths: list[str]) -> None:
 
     # Camera
     FOV          = np.float32(np.pi / 5)
+    delta_FOV    = np.float32(np.pi / 36)
+    min_FOV      = np.float32(np.pi / 8)
+    max_FOV      = np.float32(np.pi / 2)
     camera_pos   = np.array([0, 0, -5, 0], dtype=np.float32)
     camera_speed = np.array([5, 5, 5, 0], dtype=np.float32)
 
     # Light source
-    # the w value only exists for multiplication purposes. Just set it to 0
-    #                                        x  y  z  w
+    #                                        x  y  z 
     light_direction = normalize_1d(np.array([1, 0, 0], dtype=np.float32))
 
-    # Angles
+    # Angular definition
     angular_position = np.float32(0)
     angular_speed    = np.float32(10)    # Degrees/second
 
@@ -87,7 +89,7 @@ def main(stl_paths: list[str]) -> None:
     PROJECTION         = Projection.PERSP
     RENDER             = RenderType.FILL
     last_toggle        = time()
-    min_toggle_delta   = 1.5                # In seconds
+    min_toggle_delta   = 2                  # In seconds
     game_start_time    = time()
 
     # Render data
@@ -198,6 +200,13 @@ def main(stl_paths: list[str]) -> None:
                 (20, 50)
             )
 
+        # --- FOV value --- 
+        render_text = f'FOV (-/+): {int(FOV * 180 / np.pi)}'
+        canvas.blit(
+                font.render(render_text, True, (255, 255, 255)), 
+                (20, 80)
+            )
+
         # Handle events happening in game
         for (event) in py.event.get():
             if event.type == py.QUIT: 
@@ -209,20 +218,44 @@ def main(stl_paths: list[str]) -> None:
             # Toggle transformation type
             if keys[py.K_p]: 
                 # Check last toggle time - avoids flicks
-                if time() - last_toggle >= min_toggle_delta:
+                if approve_event(last_toggle, min_toggle_delta):
                     if   PROJECTION == Projection.ORTHO: PROJECTION = Projection.PERSP
                     elif PROJECTION == Projection.PERSP: PROJECTION = Projection.ORTHO
-                    
-                    last_toggle = time()
 
             # Toggle render type
             if keys[py.K_r]: 
                 # Check last toggle time - avoids flicks
-                if time() - last_toggle >= min_toggle_delta:
+                if approve_event(last_toggle, min_toggle_delta):
                     if   RENDER == RenderType.FILL: RENDER = RenderType.WIRE
                     elif RENDER == RenderType.WIRE: RENDER = RenderType.FILL
 
-                    last_toggle = time()
+            # Change FOV
+            if keys[py.K_EQUALS]:                 
+                # Check last toggle time - avoids flicks
+               if approve_event(last_toggle, min_toggle_delta):
+                    FOV = min(FOV + delta_FOV, max_FOV)
+
+                    # Recalculate the perspective tranform
+                    persp_to_screen = define_persp_to_screen_matrix(
+                            np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
+                            FOV,
+                            Z_FAR,
+                            camera_pos
+                        )
+
+            if keys[py.K_MINUS]:  
+                # Check last toggle time - avoids flicks
+                if approve_event(last_toggle, min_toggle_delta):
+                    FOV = max(FOV - delta_FOV, min_FOV)
+
+                    # Recalculate the perspective tranform
+                    persp_to_screen = define_persp_to_screen_matrix(
+                            np.array([py.display.Info().current_w, py.display.Info().current_h, 100, 1], dtype=np.uint16),
+                            FOV,
+                            Z_FAR,
+                            camera_pos
+                        )
+
 
         # Reset render matrices
         depth_buffer = np.full((py.display.Info().current_w, py.display.Info().current_h), np.inf)

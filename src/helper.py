@@ -1,6 +1,7 @@
 from enum import Enum
 from numba import njit
 import numpy as np
+from time import time
 
 
 class FullMesh:
@@ -37,9 +38,18 @@ def get_face_color(a: np.array, b: np.array, light_direction: np.array) -> np.ui
     return intensity    
 
 
+@njit()
 def get_z_cross(
             a: np.array,
             b: np.array
         ) -> np.float32:
 
     return a[0]*b[1] - a[1]*b[0]
+
+
+def approve_event(last_toggle: float, min_toggle_delta: float) -> None:
+    now = time()
+    if now - last_toggle >= min_toggle_delta:
+        last_toggle = now
+        return True
+    return False

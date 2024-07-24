@@ -39,8 +39,6 @@ def fill_triangle(
         ]
     ], dtype=np.float32)
 
-
-    # if int(B[1]) - int(A[1]) > 1:
     # Edges
     point1, point2 = ordered_points[0].copy(), ordered_points[0].copy()
 
