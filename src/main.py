@@ -50,7 +50,7 @@ def main(stl_paths: list[str]) -> None:
 
     # Boxes dimensions
     ORTHO_BOX_DIMENSIONS = np.array([3, 3, 3], dtype=np.float32)
-    Z_FAR  = np.float32(100)
+    Z_FAR  = np.float32(4)
 
     # Camera
     FOV          = np.float32(np.pi / 5)
@@ -62,7 +62,7 @@ def main(stl_paths: list[str]) -> None:
 
     # Light source
     #                                        x  y  z 
-    light_direction = normalize_1d(np.array([1, 0, 0], dtype=np.float32))
+    light_direction = normalize_1d(np.array([1, 0, 0.1], dtype=np.float32))
 
     # Angular definition
     angular_position = np.float32(0)
