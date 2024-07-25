@@ -1,3 +1,17 @@
+#!/usr/bin/python3
+
+#********************************************************************
+# Author: Lauro França (oPisiti)                                    #
+# Contact:                                                          #
+#   github: oPisiti                                                 #
+#   Email: contact@opisiti.com                                      #
+# Date: July 25, 2024                                               #
+# Description:                                                      #
+#   This program is an exercise of how 3d graphical engines works,  #
+#   with support for orthographic and perspective projections       #
+#********************************************************************
+
+
 from helper import *
 from matrix import *
 import numpy as np
